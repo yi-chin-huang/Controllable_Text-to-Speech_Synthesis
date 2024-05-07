@@ -20,3 +20,4 @@ synthesizer/saved_models/*
 vocoder/saved_models/*
 .DS_Store
 saved_models
+dataset/*
