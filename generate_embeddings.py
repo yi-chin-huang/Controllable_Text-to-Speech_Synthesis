@@ -7,8 +7,10 @@ import pandas as pd
 import os
 import pickle
 
-csv_path='./dataset/VoxCeleb1/vox1_meta.csv'
-dataset_path='./dataset/VoxCeleb1/wav/'
+csv_path='../../dataset/VoxCeleb1/vox1_meta.csv'
+dataset_path='../../dataset/VoxCeleb1/wav/'
+embeddings_path = 'female/'
+
 
 def fetch_ids(gender=None, nationality=None):
     df = pd.read_csv(csv_path, sep='\t')
@@ -49,7 +51,7 @@ def get_nationality(id):
     nationality = df.loc[row_index, 'Nationality']
     return nationality
 
-def generate_embeddings(input_path: Path):
+def generate_embeddings(input_path):
     encoder_path = Path("saved_models/default/encoder.pt")
     ensure_default_models(Path("saved_models"))
     inference.load_model(encoder_path)
@@ -66,8 +68,7 @@ def get_embeddings(pickle_filepath):
 
 
 if __name__ == '__main__':
-    embeddings_path = 'encoder/embeddings/'
-
+    
     gender = 'f'
     ids = fetch_ids(gender)
     
