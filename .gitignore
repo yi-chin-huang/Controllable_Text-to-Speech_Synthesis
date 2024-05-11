@@ -22,3 +22,4 @@ vocoder/saved_models/*
 saved_models
 dataset/*
 encoder/embeddings/
+data/
