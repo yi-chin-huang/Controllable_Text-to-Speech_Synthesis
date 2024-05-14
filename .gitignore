@@ -21,3 +21,5 @@ vocoder/saved_models/*
 .DS_Store
 saved_models
 dataset/*
+encoder/embeddings/
+data/
