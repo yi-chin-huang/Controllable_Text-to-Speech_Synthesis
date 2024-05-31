@@ -1,11 +1,10 @@
 from pathlib import Path
 from utils.default_models import ensure_default_models
 from encoder import inference
-from encoder import audio
-import numpy as np
 import pandas as pd
 import os
 import pickle
+
 
 csv_path='../../dataset/VoxCeleb1/vox1_meta.csv'
 dataset_path='../../dataset/VoxCeleb1/wav/'
@@ -25,6 +24,7 @@ def fetch_ids(gender=None, nationality=None):
     ids = [id for id in filtered_df['VoxCeleb1 ID'].tolist() if Path(dataset_path + id).is_dir()]
     return ids
 
+
 def get_wav_paths(id):
     root_dir_path = Path(dataset_path + id)
     wav_paths = []
@@ -39,11 +39,13 @@ def get_wav_paths(id):
             
     return wav_paths
 
+
 def get_gender(id):
     df = pd.read_csv(csv_path, sep='\t')
     row_index = df.index[df['VoxCeleb1 ID'] == id][0]
     gender = df.loc[row_index, 'Gender']
     return gender
+
 
 def get_nationality(id):
     df = pd.read_csv(csv_path, sep='\t')
@@ -51,17 +53,17 @@ def get_nationality(id):
     nationality = df.loc[row_index, 'Nationality']
     return nationality
 
+
 def generate_embeddings(input_path):
     encoder_path = Path("saved_models/default/encoder.pt")
     ensure_default_models(Path("saved_models"))
     inference.load_model(encoder_path)
     preprocessed_wav = inference.preprocess_wav(input_path)
-    # TODO: try using_partials=False
     embeddings = inference.embed_utterance(preprocessed_wav, using_partials=True, return_partials=False)
-    embeddings /= np.linalg.norm(embeddings)
     return embeddings
 
-def get_embeddings(pickle_filepath):
+
+def load_embeddings(pickle_filepath):
     with open(pickle_filepath, 'rb') as pickle_file:
         label_dict = pickle.load(pickle_file)
     return label_dict
