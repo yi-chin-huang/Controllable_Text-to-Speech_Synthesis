@@ -30,19 +30,22 @@ def fetch_filenames(gender=None, age=None):
 
 def calculate_avg_embeddings_per_client():
     df = pd.read_csv(csv_path, sep='\t')
+    print("num rows =", len(df))
 
     embeddings_per_client = {}
     labels_per_client = {}
     us_speaker_count = 0
     uk_speaker_count = 0
     
-    for _, row in df.iterrows():
+    for index, row in df.iterrows():
         gender = row['gender']
         age = row['age']
         accent = row['accents']
 
         if not pd.isna(gender) and not pd.isna(age) and not pd.isna(accent):
             if "United States" or "England" in str(accent):
+                print("index =", index)
+
                 client_id = row['client_id']
                 filename = row['path']
                 audio_path = dataset_path + filename
@@ -66,14 +69,14 @@ def calculate_avg_embeddings_per_client():
                     else:
                         label_dict['accent'] = "UK"
                         uk_speaker_count += 1
-                    
+                        
                     labels_per_client[client_id] = label_dict
                 
                 else:
                     embeddings_per_client[client_id] = np.append(embeddings_per_client[client_id], embeddings, axis=1)
     
-    print("amount of US speakers =", us_speaker_count)
-    print("amount of UK speakers =", uk_speaker_count)
+    print("num US speakers =", us_speaker_count)
+    print("num UK speakers =", uk_speaker_count)
 
     for client_id in embeddings_per_client.keys():
         embeddings_per_client[client_id] = np.mean(embeddings_per_client[client_id], axis=1).reshape((-1, 1))
