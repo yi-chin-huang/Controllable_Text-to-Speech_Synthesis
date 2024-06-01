@@ -37,6 +37,59 @@ def fetch_filenames(gender=None, age=None):
     return filenames
 
 
+def calculate_avg_embeddings(num_clients=1000):
+    avg_embeddings = None
+    labels = np.array([])
+
+    df = pd.read_csv(csv_path, sep='\t')
+    us_condition = (df['accents'].str.contains('United States', na=False)) & (df['gender'].notna()) & (df['age'].notna())
+    uk_condition = (df['accents'].str.contains('England', na=False)) & (df['gender'].notna()) & (df['age'].notna())
+    us_xor_uk_filtered_df = df[us_condition ^ uk_condition]
+    unique_us_client_ids = us_xor_uk_filtered_df[us_condition]['client_id'].unique()[:num_clients]
+    unique_uk_client_ids = us_xor_uk_filtered_df[uk_condition]['client_id'].unique()[:num_clients]
+    unique_us_uk_client_ids = np.append(unique_us_client_ids, unique_uk_client_ids)
+
+    for client_id in tqdm(unique_us_uk_client_ids):
+        filtered_rows = us_xor_uk_filtered_df[us_xor_uk_filtered_df['client_id'] == client_id]
+
+        labels_dict = {}
+        labels_dict['gender'] = filtered_rows['gender'].iloc[0]
+        labels_dict['age'] = filtered_rows['age'].iloc[0]
+        labels_dict['accent'] = 'US' if 'United States' in filtered_rows['accents'].iloc[0] else 'UK'
+        labels_dict['filenames'] = []
+        labels_dict['avg_duration'] = 0
+        labels_dict['num_utterances'] = len(filtered_rows)
+
+        embeddings_per_client = None
+        
+        for _, row in filtered_rows.iterrows():
+            filename = row['path']
+            audio_path = dataset_path + filename
+
+            if not Path(audio_path).is_file():
+                raise FileNotFoundError("The given audio file at" + audio_path + "was not found")
+            
+            embeddings = np.reshape(generate_embeddings(audio_path), (-1, 1))
+
+            if embeddings_per_client is None:
+                embeddings_per_client = embeddings
+            else:
+                embeddings_per_client = np.append(embeddings_per_client, embeddings, axis=1)
+
+            labels_dict['filenames'].append(filename)
+            labels_dict['avg_duration'] += get_audio_duration(audio_path) / labels_dict['num_utterances']
+    
+        avg_embeddings_per_client = np.mean(embeddings_per_client, axis=1).reshape((-1, 1))
+
+        if avg_embeddings is None:
+            avg_embeddings = avg_embeddings_per_client
+        else:
+            avg_embeddings = np.append(avg_embeddings, avg_embeddings_per_client, axis=1)
+        labels = np.append(labels, labels_dict)
+
+    return avg_embeddings, labels
+
+
 def calculate_avg_embeddings_per_client():
     df = pd.read_csv(csv_path, sep='\t')
 
@@ -157,10 +210,11 @@ def run_inference_from_embeddings(text, embed):
 
 if __name__ == '__main__':
 
-    avg_embeddings, labels = calculate_avg_embeddings_per_client()
+    # avg_embeddings, labels = calculate_avg_embeddings_per_client()
+    avg_embeddings, labels = calculate_avg_embeddings(num_clients=1000)
     
-    embeddings_pickle = "common_voice_avg_embeddings_updated.pk"
-    labels_pickle = "common_voice_labels_updated.pk"
+    embeddings_pickle = "common_voice_avg_embeddings_1000.pk"
+    labels_pickle = "common_voice_labels_1000.pk"
 
     with open(embeddings_pickle, 'wb') as file:
         pickle.dump(avg_embeddings, file)
@@ -168,8 +222,6 @@ if __name__ == '__main__':
     with open(labels_pickle, 'wb') as file:
         pickle.dump(labels, file)
 
-    # ensure_default_models(Path("saved_models"))
-    
     # generate embeddings per age category
     # age_list = ["teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies"]
     
