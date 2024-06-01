@@ -9,9 +9,13 @@ import pickle
 import soundfile as sf
 from pydub import AudioSegment
 
+# paths locally
+# csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
+# dataset_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
 
-csv_path='dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
-dataset_path='dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
+# paths on GCP
+csv_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/validated_sentences.tsv"
+dataset_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/clips"
 
 
 def fetch_filenames(gender=None, age=None):
