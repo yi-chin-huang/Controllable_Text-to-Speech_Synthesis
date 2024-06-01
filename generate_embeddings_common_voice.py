@@ -9,14 +9,15 @@ import pickle
 import soundfile as sf
 import audioread
 from tqdm import tqdm
+import warnings
 
 # paths locally
-csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
-dataset_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
+# csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
+# dataset_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
 
 # paths on GCP
-# csv_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/validated.tsv"
-# dataset_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/clips/"
+csv_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/validated.tsv"
+dataset_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/clips/"
 
 # load encoder
 encoder_path = Path("saved_models/default/encoder.pt")
@@ -71,16 +72,16 @@ def calculate_avg_embeddings_per_client():
             label_dict['age'] = age
             label_dict['accent'] = "US" if "United States" in str(accent) else "UK"
             label_dict['avg_duration'] = get_audio_duration(audio_path)
-            label_dict['num_speakers'] = 1
+            label_dict['num_utterances'] = 1
             labels_per_client[client_id] = label_dict
         else:
             embeddings_per_client[client_id] = np.append(embeddings_per_client[client_id], embeddings, axis=1)
-            label_dict['num_speakers'] += 1
+            label_dict['num_utterances'] += 1
             label_dict['avg_duration'] += get_audio_duration(audio_path)
 
     for client_id in embeddings_per_client.keys():
         embeddings_per_client[client_id] = np.mean(embeddings_per_client[client_id], axis=1).reshape((-1, 1))
-        labels_per_client[client_id]['avg_duration'] /= labels_per_client[client_id]['num_speakers']
+        labels_per_client[client_id]['avg_duration'] /= labels_per_client[client_id]['num_utterances']
 
     avg_embeddings = np.hstack(list(embeddings_per_client.values()))
     labels = list(labels_per_client.values())
@@ -113,7 +114,9 @@ def get_age(filename):
 
 
 def generate_embeddings(input_path):
-    preprocessed_wav = encoder.preprocess_wav(input_path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        preprocessed_wav = encoder.preprocess_wav(input_path)
     embeddings = encoder.embed_utterance(preprocessed_wav, using_partials=True, return_partials=False)
     return embeddings
 
