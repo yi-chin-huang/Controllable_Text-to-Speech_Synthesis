@@ -8,6 +8,7 @@ import pandas as pd
 import pickle
 import soundfile as sf
 import audioread
+from tqdm import tqdm
 
 # paths locally
 csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
@@ -37,63 +38,52 @@ def fetch_filenames(gender=None, age=None):
 
 def calculate_avg_embeddings_per_client():
     df = pd.read_csv(csv_path, sep='\t')
-    print("num rows =", len(df))
-    print("max num US speakers =", df['accents'].str.contains('United States').sum())
-    print("max num UK speakers =", df['accents'].str.contains('England').sum())
+
+    us_condition = (df['accents'].str.contains('United States', na=False)) & (df['gender'].notna()) & (df['age'].notna())
+    uk_condition = (df['accents'].str.contains('England', na=False)) & (df['gender'].notna()) & (df['age'].notna())
+    us_xor_uk_filtered_df = df[us_condition ^ uk_condition]
+
+    print("num unique speakers =", us_xor_uk_filtered_df['client_id'].nunique())
+    print("num unique US speakers =", us_xor_uk_filtered_df[us_condition]['client_id'].nunique())
+    print("num unique US speakers =", us_xor_uk_filtered_df[uk_condition]['client_id'].nunique())
 
     embeddings_per_client = {}
     labels_per_client = {}
-    us_speaker_count = 0
-    uk_speaker_count = 0
     
-    for index, row in df.iterrows():
+    for _, row in tqdm(us_xor_uk_filtered_df.iterrows(), total=len(us_xor_uk_filtered_df)):
         gender = row['gender']
         age = row['age']
         accent = row['accents']
+        client_id = row['client_id']
+        filename = row['path']
+        audio_path = dataset_path + filename
 
-        if not pd.isna(gender) and not pd.isna(age) and not pd.isna(accent):
-            if "United States" or "England" in str(accent):
-                print("index =", index)
+        if not Path(audio_path).is_file():
+            raise FileNotFoundError("The given audio file at" + audio_path + "was not found")
+        
+        embeddings = np.reshape(generate_embeddings(audio_path), (-1, 1))
 
-                client_id = row['client_id']
-                filename = row['path']
-                audio_path = dataset_path + filename
-
-                if not Path(audio_path).is_file():
-                    raise FileNotFoundError("The given audio filepath " + audio_path + " was not found")
-                
-                embeddings = generate_embeddings(audio_path)
-
-                if client_id not in embeddings_per_client:
-                    embeddings_per_client[client_id] = embeddings
-                    label_dict = {}
-                    label_dict['filename'] = filename
-                    label_dict['gender'] = gender
-                    label_dict['age'] = age
-                    label_dict['duration'] = get_audio_duration(audio_path)
-
-                    if "United States" in str(accent):
-                        label_dict['accent'] = "US"
-                        us_speaker_count += 1
-                    else:
-                        label_dict['accent'] = "UK"
-                        uk_speaker_count += 1
-                        
-                    labels_per_client[client_id] = label_dict
-                
-                else:
-                    embeddings_per_client[client_id] = np.append(embeddings_per_client[client_id], embeddings, axis=1)
-    
-    print("num US speakers =", us_speaker_count)
-    print("num UK speakers =", uk_speaker_count)
+        if client_id not in embeddings_per_client:
+            embeddings_per_client[client_id] = embeddings
+            label_dict = {}
+            label_dict['filename'] = filename
+            label_dict['gender'] = gender
+            label_dict['age'] = age
+            label_dict['accent'] = "US" if "United States" in str(accent) else "UK"
+            label_dict['avg_duration'] = get_audio_duration(audio_path)
+            label_dict['num_speakers'] = 1
+            labels_per_client[client_id] = label_dict
+        else:
+            embeddings_per_client[client_id] = np.append(embeddings_per_client[client_id], embeddings, axis=1)
+            label_dict['num_speakers'] += 1
+            label_dict['avg_duration'] += get_audio_duration(audio_path)
 
     for client_id in embeddings_per_client.keys():
         embeddings_per_client[client_id] = np.mean(embeddings_per_client[client_id], axis=1).reshape((-1, 1))
+        labels_per_client[client_id]['avg_duration'] /= labels_per_client[client_id]['num_speakers']
 
     avg_embeddings = np.hstack(list(embeddings_per_client.values()))
     labels = list(labels_per_client.values())
-    print("average embeddings shape:", avg_embeddings)
-    print("labels length:", len(labels))
 
     return avg_embeddings, labels
            
@@ -166,8 +156,8 @@ if __name__ == '__main__':
 
     avg_embeddings, labels = calculate_avg_embeddings_per_client()
     
-    embeddings_pickle = "common_voice_avg_embeddings.pk"
-    labels_pickle = "common_voice_labels.pk"
+    embeddings_pickle = "common_voice_avg_embeddings_updated.pk"
+    labels_pickle = "common_voice_labels_updated.pk"
 
     with open(embeddings_pickle, 'wb') as file:
         pickle.dump(avg_embeddings, file)
