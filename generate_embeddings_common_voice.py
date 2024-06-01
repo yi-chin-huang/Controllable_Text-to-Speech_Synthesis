@@ -7,16 +7,19 @@ import numpy as np
 import pandas as pd
 import pickle
 import soundfile as sf
-from pydub import AudioSegment
+import audioread
 
 # paths locally
-# csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
-# dataset_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
+csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
+dataset_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
 
 # paths on GCP
-csv_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/validated.tsv"
-dataset_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/clips/"
+# csv_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/validated.tsv"
+# dataset_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/clips/"
 
+# load encoder
+encoder_path = Path("saved_models/default/encoder.pt")
+encoder.load_model(encoder_path)
 
 def fetch_filenames(gender=None, age=None):
     df = pd.read_csv(csv_path, sep='\t')
@@ -35,6 +38,8 @@ def fetch_filenames(gender=None, age=None):
 def calculate_avg_embeddings_per_client():
     df = pd.read_csv(csv_path, sep='\t')
     print("num rows =", len(df))
+    print("max num US speakers =", df['accents'].str.contains('United States').sum())
+    print("max num UK speakers =", df['accents'].str.contains('England').sum())
 
     embeddings_per_client = {}
     labels_per_client = {}
@@ -93,10 +98,14 @@ def calculate_avg_embeddings_per_client():
     return avg_embeddings, labels
            
 
-def get_audio_duration(filepath):
-    audio = AudioSegment.from_file(filepath)
-    duration = len(audio) / 1000
-    return duration
+def get_audio_duration(file_path):
+    try:
+        with audioread.audio_open(file_path) as audio_file:
+            duration = audio_file.duration
+            return duration
+    except audioread.DecodeError:
+        print("Failed to decode the audio file.")
+        return None
 
 
 def get_gender(filename):
@@ -114,8 +123,6 @@ def get_age(filename):
 
 
 def generate_embeddings(input_path):
-    encoder_path = Path("saved_models/default/encoder.pt")
-    encoder.load_model(encoder_path)
     preprocessed_wav = encoder.preprocess_wav(input_path)
     embeddings = encoder.embed_utterance(preprocessed_wav, using_partials=True, return_partials=False)
     return embeddings
