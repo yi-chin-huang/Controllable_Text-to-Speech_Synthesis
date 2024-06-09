@@ -135,9 +135,9 @@ if __name__ == '__main__':
 
     num_generated = 0
 
-    input1 = "voice_input/id10002_0_laIeN-Q44.wav"
-    input2 = "voice_input/id10004_bIZQaEVuATQ.wav"
-    input_voices = [input2, input1]
+    input1 = "voice_input/id10720_4eulQvWc204.wav" # male
+    input2 = "voice_input/id11154_7A3VAM7vZIs.wav" # female taylor
+    input_voices = [input1, input2]
 
     try:
         # Get the reference audio filepath
@@ -166,11 +166,12 @@ if __name__ == '__main__':
             embeds.append(embed)
             print("Created the embedding")
         
-        avg_embed = np.mean( np.array(embeds), axis=0 )
+        # avg_embed = np.mean( np.array(embeds), axis=0 )
+        avg_embed = 0.37 * embeds[0] + 0.63 * embeds[1]
 
 
         ## Generating the spectrogram
-        text = "Since we do not know who has already completed the survey, we are sending reminders to all students on campus. Thank you if you have already completed the survey – please take this opportunity to encourage your friends to participate as well. It is critical that we have the participation of as many students as possible so that we can get the fullest and most accurate picture of student perspectives and experiences at Stanford."
+        text = "We do not know who has already completed the survey."
 
         # If seed is specified, reset torch seed and force synthesizer reload
         if args.seed is not None:
@@ -211,7 +212,7 @@ if __name__ == '__main__':
 
         # Save it on the disk
         avg_file_name = 'avg_' + input1.split('/')[-1][:-4] + '_' + input2.split('/')[-1][:-4]
-        filename = "synthesis_audio/" + "%s.wav" % avg_file_name
+        filename = "synthesis_audio/" + "%s_3763.wav" % avg_file_name
         print(generated_wav.dtype)
         sf.write(filename, generated_wav.astype(np.float32), synthesizer.sample_rate)
         num_generated += 1

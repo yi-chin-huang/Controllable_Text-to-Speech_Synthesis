@@ -15,13 +15,7 @@ from utils.default_models import ensure_default_models
 from vocoder import inference as vocoder
 
 import wave
-import ffmpeg
-
-def merge_mp3s(mp3s, output):
-    input_args = []
-    for mp3 in mp3s:
-        input_args.append(ffmpeg.input(mp3))
-    ffmpeg.concat(*input_args, v=0, a=1).output(output).run()
+import pickle
 
 def merge_wavs(infiles, outfile):
     data = []
@@ -90,7 +84,6 @@ if __name__ == '__main__':
     synthesizer = Synthesizer(args.syn_model_fpath)
     vocoder.load_model(args.voc_model_fpath)
 
-
     ## Run a test
     print("Testing your configuration with small inputs.")
     # Forward an audio waveform of zeroes that lasts 1 second. Notice how we can get the encoder's
@@ -139,20 +132,36 @@ if __name__ == '__main__':
     print("This is a GUI-less example of interface to SV2TTS. The purpose of this script is to "
           "show how you can interface this project easily with your own. See the source code for "
           "an explanation of what is happening.\n")
+    
+    def load_data_from_pickle(filename):
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
+
+    embeddings_path = "/home/Yi-Chin/Controllable_Text-to-Speech_Synthesis/embeddings/"
+
+    Xf_avg_loaded, labelsf_avg_loaded = load_data_from_pickle(embeddings_path + 'female_avg_embeddings.pickle')
+    Xm_avg_loaded, labelsm_avg_loaded = load_data_from_pickle(embeddings_path + 'male_avg_embeddings.pickle')
+
+    avg_female_embed = np.mean(Xf_avg_loaded, axis=0)
+    avg_male_embed = np.mean(Xm_avg_loaded, axis=0)
 
     num_generated = 0
-    infile = "/home/dataset/CommonVoice/audio_samples/common_voice_en_19678104.mp3"
-    # infiles = [infolder + fname for fname in os.listdir(Path(infolder))]
-    # merged_file_name = '_'.join(infolder.split('/')[-3:])[:-1]
-    # merged_file = 'voice_input/common_voice/' + merged_file_name + '.mp3'
-    # merge_mp3s(infiles, merged_file)
-    
+    # input_voice_file = "voice_input/id10274_89UnsytX6Y8.wav" # male
+    # input_voice_file = "voice_input/id10032_gHfG5gcqMYE.wav" # female
+    input_voice_file = "voice_input/id10324_1BN1Twr0pDM.wav" # India female
+    input_voice_file = "voice_input/id10061_6gAqaYX0Lig.wav"
+    input_voice_file = "voice_input/id10004_bIZQaEVuATQ.wav" # male
+    input_voice_file = "voice_input/id11154_7A3VAM7vZIs.wav" # taylor
+    # input_voice_file = "voice_input/id10720_4eulQvWc204.wav" # UK male
+    avg_gender_embed = avg_male_embed
+
+    # input_voices = [input1]
+
     try:
         # Get the reference audio filepath
         message = "Reference voice: enter an audio filepath of a voice to be cloned (mp3, " \
                     "wav, m4a, flac, ...):\n"
-        # in_fpath = Path(input(message).replace("\"", "").replace("\'", ""))
-        in_fpath = infile
+        in_fpath = input_voice_file
 
         ## Computing the embedding
         # First, we load the wav using the function that the speaker encoder provides. This is
@@ -164,17 +173,23 @@ if __name__ == '__main__':
         # - If the wav is already loaded:
         original_wav, sampling_rate = librosa.load(str(in_fpath))
         preprocessed_wav = encoder.preprocess_wav(original_wav, sampling_rate)
-        print("Loaded file succesfully")
+        print("Loaded file %s succesfully" % in_fpath)
 
         # Then we derive the embedding. There are many functions and parameters that the
         # speaker encoder interfaces. These are mostly for in-depth research. You will typically
         # only use this function (with its default parameters):
         embed = encoder.embed_utterance(preprocessed_wav)
+        # print(embed.shape, avg_female_embed.shape)
         print("Created the embedding")
-
+        
+        # avg_embed = np.mean( np.array([embed, avg_gender_embed]), axis=0)
+        # avg_embed = avg_gender_embed
+        avg_embed = 0.6 * embed + 0.4 * avg_gender_embed
+        # avg_embed /= np.linalg.norm(avg_embed)
 
         ## Generating the spectrogram
-        text = "My father's car is a jaguar, he drives it faster than I do."
+        text = "We do not know who has already completed the survey."
+        
         # If seed is specified, reset torch seed and force synthesizer reload
         if args.seed is not None:
             torch.manual_seed(args.seed)
@@ -182,7 +197,7 @@ if __name__ == '__main__':
 
         # The synthesizer works in batch, so you need to put your data in a list or numpy array
         texts = [text]
-        embeds = [embed]
+        embeds = [avg_embed]
         # If you know what the attention layer alignments are, you can retrieve them here by
         # passing return_alignments=True
         specs = synthesizer.synthesize_spectrograms(texts, embeds)
@@ -211,21 +226,10 @@ if __name__ == '__main__':
         # Trim excess silences to compensate for gaps in spectrograms (issue #53)
         generated_wav = encoder.preprocess_wav(generated_wav)
 
-        # Play the audio (non-blocking)
-        # if not args.no_sound:
-        #     import sounddevice as sd
-        #     try:
-        #         sd.stop()
-        #         sd.play(generated_wav, synthesizer.sample_rate)
-        #     except sd.PortAudioError as e:
-        #         print("\nCaught exception: %s" % repr(e))
-        #         print("Continuing without audio playback. Suppress this message with the \"--no_sound\" flag.\n")
-        #     except:
-        #         raise
 
         # Save it on the disk
-        cv_id = '' + infile.split('/')[-1][:-4]
-        filename = "synthesis_audio/common_voice/" + "%s.wav" % cv_id
+        avg_file_name = 'avg_' + input_voice_file.split('/')[-1][:-4] + '_' + 'avg_male0604'
+        filename = "synthesis_audio/" + "%s.wav" % avg_file_name
         print(generated_wav.dtype)
         sf.write(filename, generated_wav.astype(np.float32), synthesizer.sample_rate)
         num_generated += 1

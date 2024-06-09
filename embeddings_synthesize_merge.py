@@ -136,12 +136,22 @@ if __name__ == '__main__':
     num_generated = 0
 
     # infolder = "../../dataset/VoxCeleb1/wav/id10002/0_laIeN-Q44/"
-    infolder = "../../dataset/VoxCeleb1/wav/id10004/bIZQaEVuATQ/"
+    # infolder = "../../dataset/VoxCeleb1/wav/id10015/cnfBsYa5iOM/"
+    # infolder = "../../dataset/VoxCeleb1/wav/id10004/bIZQaEVuATQ/"
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10032/gHfG5gcqMYE/" # US female
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10274/89UnsytX6Y8/"
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10282/neQO6_CUY4w/" # UK female
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10324/1BN1Twr0pDM/" # India female
+    infolder = "/home/dataset/VoxCeleb1/wav/id10060/l2pijcCsAVY/" # US female
+    infolder = "/home/dataset/VoxCeleb1/wav/id10061/6gAqaYX0Lig/" # US female
+    infolder = "/home/dataset/VoxCeleb1/wav/id11154/7A3VAM7vZIs/" # taylor swift
+    infolder = "/home/dataset/VoxCeleb1/wav/id10720/4eulQvWc204/" # UK male
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10346/FTl-9Tw0lCc/" # gordon ramsay
     infiles = [infolder + fname for fname in os.listdir(Path(infolder))]
     merged_file_name = '_'.join(infolder.split('/')[-3:])[:-1]
     merged_file = 'voice_input/' + merged_file_name + '.wav'
     merge_wavs(infiles, merged_file)
-
+    
     try:
         # Get the reference audio filepath
         message = "Reference voice: enter an audio filepath of a voice to be cloned (mp3, " \
@@ -169,8 +179,7 @@ if __name__ == '__main__':
 
 
         ## Generating the spectrogram
-        text = "Since we do not know who has already completed the survey, we are sending reminders to all students on campus. Thank you if you have already completed the survey – please take this opportunity to encourage your friends to participate as well. It is critical that we have the participation of as many students as possible so that we can get the fullest and most accurate picture of student perspectives and experiences at Stanford."
-
+        text = "We do not know who has already completed the survey."
         # If seed is specified, reset torch seed and force synthesizer reload
         if args.seed is not None:
             torch.manual_seed(args.seed)
@@ -220,7 +229,7 @@ if __name__ == '__main__':
         #         raise
 
         # Save it on the disk
-        filename = "synthesis_audio/" + "%s.wav" % merged_file_name
+        filename = "synthesis_audio/" + "%s_5000.wav" % merged_file_name
         print(generated_wav.dtype)
         sf.write(filename, generated_wav.astype(np.float32), synthesizer.sample_rate)
         num_generated += 1
