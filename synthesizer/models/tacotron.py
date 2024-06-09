@@ -414,7 +414,7 @@ class Tacotron(nn.Module):
 
         return mel_outputs, linear, attn_scores, stop_outputs
 
-    def generate(self, x, speaker_embedding=None, steps=2000):
+    def generate(self, x, speaker_embedding=None, steps=5000):
         self.eval()
         device = next(self.parameters()).device  # use same device as parameters
 
@@ -455,7 +455,7 @@ class Tacotron(nn.Module):
             attn_scores.append(scores)
             stop_outputs.extend([stop_tokens] * self.r)
             # Stop the loop when all stop tokens in batch exceed threshold
-            if (stop_tokens > 0.5).all() and t > 10: break
+            if (stop_tokens > 0.8).all() and t > 15: break
 
         # Concat the mel outputs into sequence
         mel_outputs = torch.cat(mel_outputs, dim=2)
