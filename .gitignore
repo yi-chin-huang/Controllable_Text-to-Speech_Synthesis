@@ -23,3 +23,5 @@ saved_models
 dataset/*
 encoder/embeddings/
 data/
+synthesis_audio/
+embeddings/
