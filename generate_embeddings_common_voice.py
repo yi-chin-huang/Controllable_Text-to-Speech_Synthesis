@@ -12,16 +12,18 @@ from tqdm import tqdm
 import warnings
 
 # paths locally
-# csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
-# dataset_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
+csv_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/validated.tsv'
+dataset_path = 'dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/'
 
 # paths on GCP
-csv_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/validated.tsv"
-dataset_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/clips/"
+# csv_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/validated.tsv"
+# dataset_path = "../../dataset/CommonVoice/cv-corpus-17.0-2024-03-15/en/clips/"
 
-# load encoder
-encoder_path = Path("saved_models/default/encoder.pt")
-encoder.load_model(encoder_path)
+# load models
+encoder.load_model(Path("saved_models/default/encoder.pt"))
+synthesizer = Synthesizer(Path("saved_models/default/synthesizer.pt"))
+vocoder.load_model(Path("saved_models/default/vocoder.pt"))
+
 
 def fetch_filenames(gender=None, age=None):
     df = pd.read_csv(csv_path, sep='\t')
@@ -180,30 +182,26 @@ def load_embeddings(pickle_filepath):
     return label_dict
 
 
-def run_inference_from_embeddings(text, embed):
+def run_inference_from_embeddings(text, embed, filename):
     texts = [text]
     embeds = [embed]
 
-    synthesizer = Synthesizer(Path("saved_models/default/synthesizer.pt"))
     specs = synthesizer.synthesize_spectrograms(texts, embeds)
     spec = specs[0]
     print("Created the mel spectrogram")
 
     ## Generating the waveform
     print("Synthesizing the waveform:")
-    vocoder.load_model(Path("saved_models/default/vocoder.pt"))
     generated_wav = vocoder.infer_waveform(spec)
 
     ## Post-generation
-    # There's a bug with sounddevice that makes the audio cut one second earlier, so we
-    # pad it.
+    # There's a bug with sounddevice that makes the audio cut one second earlier, so we pad it.
     generated_wav = np.pad(generated_wav, (0, synthesizer.sample_rate), mode="constant")
 
     # Trim excess silences to compensate for gaps in spectrograms (issue #53)
     generated_wav = encoder.preprocess_wav(generated_wav)
 
     # Save it on the disk
-    filename = "demo.wav"
     sf.write(filename, generated_wav.astype(np.float32), synthesizer.sample_rate)
     print("\nSaved output as %s\n\n" % filename)
 
@@ -211,16 +209,16 @@ def run_inference_from_embeddings(text, embed):
 if __name__ == '__main__':
 
     # avg_embeddings, labels = calculate_avg_embeddings_per_client()
-    avg_embeddings, labels = calculate_avg_embeddings(num_clients=1000)
+    # avg_embeddings, labels = calculate_avg_embeddings(num_clients=1000)
     
-    embeddings_pickle = "common_voice_avg_embeddings_1000.pk"
-    labels_pickle = "common_voice_labels_1000.pk"
+    # embeddings_pickle = "common_voice_avg_embeddings_1000.pk"
+    # labels_pickle = "common_voice_labels_1000.pk"
 
-    with open(embeddings_pickle, 'wb') as file:
-        pickle.dump(avg_embeddings, file)
+    # with open(embeddings_pickle, 'wb') as file:
+    #     pickle.dump(avg_embeddings, file)
     
-    with open(labels_pickle, 'wb') as file:
-        pickle.dump(labels, file)
+    # with open(labels_pickle, 'wb') as file:
+    #     pickle.dump(labels, file)
 
     # generate embeddings per age category
     # age_list = ["teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies"]
@@ -254,11 +252,23 @@ if __name__ == '__main__':
     #             pickle.dump(label_dict, file)
 
     # run inference
-    # # text = "Hello! This is a sixty-year old male speaking. How are you doing today?"
-    # text = "Romeo, take me somewhere we can be alone I'll be waiting, all there's left to do is run You'll be the prince and I'll be the princess It's a love story, baby, just say yes"
-    # # embed_pickle = "embeddings/sixties/common_voice_en_39587041_male_masculine_sixties.pk"
-    # # embed_pickle = "embeddings/teens/common_voice_en_39645706_female_feminine_teens.pk"
-    # # embed = load_embeddings(embed_pickle)['embed']
+    text = "My father's car is a jaguar, he drives it faster than I do."
     # input_path = "dataset/cv-corpus-17.0-delta-2024-03-15/en/clips/common_voice_en_39645706.mp3"
     # embed = generate_embeddings(input_path)
-    # run_inference_from_embeddings(text, embed)
+
+    gender_list = ["female"]
+    age_list = ["teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties"]
+    accent_list = ["US"]
+    
+    for gender in gender_list:
+        for age in age_list:
+            for accent in accent_list:
+                filename = gender + "_" + age + "_" + accent
+                embed_pickle = "dataset/CommonVoice/" + filename + ".pk"
+                embeddings = load_embeddings(embed_pickle)
+                index = 0
+                for embed in embeddings:
+                    index += 1
+                    wav_filename = filename + "_" + str(index) + ".wav"
+                    print(wav_filename)
+                    run_inference_from_embeddings(text, embed, filename=wav_filename)
