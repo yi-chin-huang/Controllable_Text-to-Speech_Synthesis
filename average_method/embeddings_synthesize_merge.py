@@ -135,43 +135,51 @@ if __name__ == '__main__':
 
     num_generated = 0
 
-    input1 = "voice_input/id10002_0_laIeN-Q44.wav"
-    input2 = "voice_input/id10004_bIZQaEVuATQ.wav"
-    input_voices = [input2, input1]
-
+    # infolder = "../../dataset/VoxCeleb1/wav/id10002/0_laIeN-Q44/"
+    # infolder = "../../dataset/VoxCeleb1/wav/id10015/cnfBsYa5iOM/"
+    # infolder = "../../dataset/VoxCeleb1/wav/id10004/bIZQaEVuATQ/"
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10032/gHfG5gcqMYE/" # US female
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10274/89UnsytX6Y8/"
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10282/neQO6_CUY4w/" # UK female
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10324/1BN1Twr0pDM/" # India female
+    infolder = "/home/dataset/VoxCeleb1/wav/id10060/l2pijcCsAVY/" # US female
+    infolder = "/home/dataset/VoxCeleb1/wav/id10061/6gAqaYX0Lig/" # US female
+    infolder = "/home/dataset/VoxCeleb1/wav/id11154/7A3VAM7vZIs/" # taylor swift
+    infolder = "/home/dataset/VoxCeleb1/wav/id10720/4eulQvWc204/" # UK male
+    # infolder = "/home/dataset/VoxCeleb1/wav/id10346/FTl-9Tw0lCc/" # gordon ramsay
+    infiles = [infolder + fname for fname in os.listdir(Path(infolder))]
+    merged_file_name = '_'.join(infolder.split('/')[-3:])[:-1]
+    merged_file = 'voice_input/' + merged_file_name + '.wav'
+    merge_wavs(infiles, merged_file)
+    
     try:
         # Get the reference audio filepath
         message = "Reference voice: enter an audio filepath of a voice to be cloned (mp3, " \
                     "wav, m4a, flac, ...):\n"
-        embeds = []
-        for voice_file in input_voices:
-            in_fpath = voice_file
+        # in_fpath = Path(input(message).replace("\"", "").replace("\'", ""))
+        in_fpath = merged_file
 
-            ## Computing the embedding
-            # First, we load the wav using the function that the speaker encoder provides. This is
-            # important: there is preprocessing that must be applied.
+        ## Computing the embedding
+        # First, we load the wav using the function that the speaker encoder provides. This is
+        # important: there is preprocessing that must be applied.
 
-            # The following two methods are equivalent:
-            # - Directly load from the filepath:
-            preprocessed_wav = encoder.preprocess_wav(in_fpath)
-            # - If the wav is already loaded:
-            original_wav, sampling_rate = librosa.load(str(in_fpath))
-            preprocessed_wav = encoder.preprocess_wav(original_wav, sampling_rate)
-            print("Loaded file %s succesfully" % in_fpath)
+        # The following two methods are equivalent:
+        # - Directly load from the filepath:
+        preprocessed_wav = encoder.preprocess_wav(in_fpath)
+        # - If the wav is already loaded:
+        original_wav, sampling_rate = librosa.load(str(in_fpath))
+        preprocessed_wav = encoder.preprocess_wav(original_wav, sampling_rate)
+        print("Loaded file succesfully")
 
-            # Then we derive the embedding. There are many functions and parameters that the
-            # speaker encoder interfaces. These are mostly for in-depth research. You will typically
-            # only use this function (with its default parameters):
-            embed = encoder.embed_utterance(preprocessed_wav)
-            embeds.append(embed)
-            print("Created the embedding")
-        
-        avg_embed = np.mean( np.array(embeds), axis=0 )
+        # Then we derive the embedding. There are many functions and parameters that the
+        # speaker encoder interfaces. These are mostly for in-depth research. You will typically
+        # only use this function (with its default parameters):
+        embed = encoder.embed_utterance(preprocessed_wav)
+        print("Created the embedding")
 
 
         ## Generating the spectrogram
-        text = "Since we do not know who has already completed the survey, we are sending reminders to all students on campus. Thank you if you have already completed the survey – please take this opportunity to encourage your friends to participate as well. It is critical that we have the participation of as many students as possible so that we can get the fullest and most accurate picture of student perspectives and experiences at Stanford."
-
+        text = "We do not know who has already completed the survey."
         # If seed is specified, reset torch seed and force synthesizer reload
         if args.seed is not None:
             torch.manual_seed(args.seed)
@@ -179,7 +187,7 @@ if __name__ == '__main__':
 
         # The synthesizer works in batch, so you need to put your data in a list or numpy array
         texts = [text]
-        embeds = [avg_embed]
+        embeds = [embed]
         # If you know what the attention layer alignments are, you can retrieve them here by
         # passing return_alignments=True
         specs = synthesizer.synthesize_spectrograms(texts, embeds)
@@ -208,10 +216,20 @@ if __name__ == '__main__':
         # Trim excess silences to compensate for gaps in spectrograms (issue #53)
         generated_wav = encoder.preprocess_wav(generated_wav)
 
+        # Play the audio (non-blocking)
+        # if not args.no_sound:
+        #     import sounddevice as sd
+        #     try:
+        #         sd.stop()
+        #         sd.play(generated_wav, synthesizer.sample_rate)
+        #     except sd.PortAudioError as e:
+        #         print("\nCaught exception: %s" % repr(e))
+        #         print("Continuing without audio playback. Suppress this message with the \"--no_sound\" flag.\n")
+        #     except:
+        #         raise
 
         # Save it on the disk
-        avg_file_name = 'avg_' + input1.split('/')[-1][:-4] + '_' + input2.split('/')[-1][:-4]
-        filename = "synthesis_audio/" + "%s.wav" % avg_file_name
+        filename = "synthesis_audio/" + "%s_5000.wav" % merged_file_name
         print(generated_wav.dtype)
         sf.write(filename, generated_wav.astype(np.float32), synthesizer.sample_rate)
         num_generated += 1

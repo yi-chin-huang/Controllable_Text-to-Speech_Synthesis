@@ -15,6 +15,13 @@ from utils.default_models import ensure_default_models
 from vocoder import inference as vocoder
 
 import wave
+import ffmpeg
+
+def merge_mp3s(mp3s, output):
+    input_args = []
+    for mp3 in mp3s:
+        input_args.append(ffmpeg.input(mp3))
+    ffmpeg.concat(*input_args, v=0, a=1).output(output).run()
 
 def merge_wavs(infiles, outfile):
     data = []
@@ -134,20 +141,18 @@ if __name__ == '__main__':
           "an explanation of what is happening.\n")
 
     num_generated = 0
-
-    # infolder = "../../dataset/VoxCeleb1/wav/id10002/0_laIeN-Q44/"
-    infolder = "../../dataset/VoxCeleb1/wav/id10004/bIZQaEVuATQ/"
-    infiles = [infolder + fname for fname in os.listdir(Path(infolder))]
-    merged_file_name = '_'.join(infolder.split('/')[-3:])[:-1]
-    merged_file = 'voice_input/' + merged_file_name + '.wav'
-    merge_wavs(infiles, merged_file)
-
+    infile = "/home/dataset/CommonVoice/audio_samples/common_voice_en_19678104.mp3"
+    # infiles = [infolder + fname for fname in os.listdir(Path(infolder))]
+    # merged_file_name = '_'.join(infolder.split('/')[-3:])[:-1]
+    # merged_file = 'voice_input/common_voice/' + merged_file_name + '.mp3'
+    # merge_mp3s(infiles, merged_file)
+    
     try:
         # Get the reference audio filepath
         message = "Reference voice: enter an audio filepath of a voice to be cloned (mp3, " \
                     "wav, m4a, flac, ...):\n"
         # in_fpath = Path(input(message).replace("\"", "").replace("\'", ""))
-        in_fpath = merged_file
+        in_fpath = infile
 
         ## Computing the embedding
         # First, we load the wav using the function that the speaker encoder provides. This is
@@ -169,8 +174,7 @@ if __name__ == '__main__':
 
 
         ## Generating the spectrogram
-        text = "Since we do not know who has already completed the survey, we are sending reminders to all students on campus. Thank you if you have already completed the survey – please take this opportunity to encourage your friends to participate as well. It is critical that we have the participation of as many students as possible so that we can get the fullest and most accurate picture of student perspectives and experiences at Stanford."
-
+        text = "My father's car is a jaguar, he drives it faster than I do."
         # If seed is specified, reset torch seed and force synthesizer reload
         if args.seed is not None:
             torch.manual_seed(args.seed)
@@ -220,7 +224,8 @@ if __name__ == '__main__':
         #         raise
 
         # Save it on the disk
-        filename = "synthesis_audio/" + "%s.wav" % merged_file_name
+        cv_id = '' + infile.split('/')[-1][:-4]
+        filename = "synthesis_audio/common_voice/" + "%s.wav" % cv_id
         print(generated_wav.dtype)
         sf.write(filename, generated_wav.astype(np.float32), synthesizer.sample_rate)
         num_generated += 1

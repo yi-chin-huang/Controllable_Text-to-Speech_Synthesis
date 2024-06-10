@@ -20,68 +20,78 @@ import matplotlib.colors as mcolors
 from collections import Counter
 
 # folder_path = '/content/drive/My Drive/CS224S/project/'
-folder_path = '/home/embeddings/'
+# folder_path = '/home/embeddings/'
 
-def load_data(folder_path):
-    X = []
-    labels = []
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if file_path.endswith('.pk'):
-            with open(file_path, 'rb') as file:
-                data = pickle.load(file)
-                X.append(data['embed'])
-                data.pop('embed', None)
-                labels.append(data)
-    return np.array(X), np.array(labels)
+# def load_data(folder_path):
+#     X = []
+#     labels = []
+#     for filename in os.listdir(folder_path):
+#         file_path = os.path.join(folder_path, filename)
+#         if file_path.endswith('.pk'):
+#             with open(file_path, 'rb') as file:
+#                 data = pickle.load(file)
+#                 X.append(data['embed'])
+#                 data.pop('embed', None)
+#                 labels.append(data)
+#     return np.array(X), np.array(labels)
 
-# Load the data
-Xf, labelsf = load_data(folder_path + 'female')
-Xm, labelsm = load_data(folder_path + 'male')
+# # Load the data
+# Xf, labelsf = load_data(folder_path + 'female')
+# Xm, labelsm = load_data(folder_path + 'male')
 
-# X = np.concatenate((Xf, labelsf), axis=0)
-# labels = np.concatenate((Xm, labelsm), axis=0)
+# # X = np.concatenate((Xf, labelsf), axis=0)
+# # labels = np.concatenate((Xm, labelsm), axis=0)
 
-def average_embeddings_by_id(X, labels):
-    embeddings_sum = {}
-    embeddings_count = {}
-    label_dict = {}
+# def average_embeddings_by_id(X, labels):
+#     embeddings_sum = {}
+#     embeddings_count = {}
+#     label_dict = {}
 
-    # Iterate over each embedding and its associated label dictionary
-    for embedding, label in zip(X, labels):
-        id_val = label['id']
-        if id_val in embeddings_sum:
-            embeddings_sum[id_val] += embedding
-            embeddings_count[id_val] += 1
-        else:
-            embeddings_sum[id_val] = embedding
-            embeddings_count[id_val] = 1
-            label_dict[id_val] = label  # Store the first occurrence of label data for each ID
+#     # Iterate over each embedding and its associated label dictionary
+#     for embedding, label in zip(X, labels):
+#         id_val = label['id']
+#         if id_val in embeddings_sum:
+#             embeddings_sum[id_val] += embedding
+#             embeddings_count[id_val] += 1
+#         else:
+#             embeddings_sum[id_val] = embedding
+#             embeddings_count[id_val] = 1
+#             label_dict[id_val] = label  # Store the first occurrence of label data for each ID
 
-    # Calculate the average embeddings for each ID
-    averaged_embeddings = {id_val: embeddings_sum[id_val] / embeddings_count[id_val] for id_val in embeddings_sum}
+#     # Calculate the average embeddings for each ID
+#     averaged_embeddings = {id_val: embeddings_sum[id_val] / embeddings_count[id_val] for id_val in embeddings_sum}
 
-    # Convert dictionaries to the format expected for return
-    unique_ids = list(averaged_embeddings.keys())
-    X_avg = np.array([averaged_embeddings[id_val] for id_val in unique_ids])
-    labels_avg = np.array([label_dict[id_val] for id_val in unique_ids])
+#     # Convert dictionaries to the format expected for return
+#     unique_ids = list(averaged_embeddings.keys())
+#     X_avg = np.array([averaged_embeddings[id_val] for id_val in unique_ids])
+#     labels_avg = np.array([label_dict[id_val] for id_val in unique_ids])
 
-    return X_avg, labels_avg
+#     return X_avg, labels_avg
 
-def save_data_as_pickle(data, filename):
-    with open(filename, 'wb') as f:
-        pickle.dump(data, f)
+# def save_data_as_pickle(data, filename):
+#     with open(filename, 'wb') as f:
+#         pickle.dump(data, f)
 
-# Load the data
-Xf_avg, labelsf_avg = average_embeddings_by_id(Xf, labelsf)
-Xm_avg, labelsm_avg = average_embeddings_by_id(Xm, labelsm)
+# # Load the data
+# Xf_avg, labelsf_avg = average_embeddings_by_id(Xf, labelsf)
+# Xm_avg, labelsm_avg = average_embeddings_by_id(Xm, labelsm)
+
+# embeddings_path = "/home/Yi-Chin/Controllable_Text-to-Speech_Synthesis/embeddings/"
+# save_data_as_pickle((Xf_avg, labelsf_avg), embeddings_path + 'female_avg_embeddings.pickle')
+# save_data_as_pickle((Xm_avg, labelsm_avg), embeddings_path + 'male_avg_embeddings.pickle')
+
+def load_data_from_pickle(filename):
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
 
 embeddings_path = "/home/Yi-Chin/Controllable_Text-to-Speech_Synthesis/embeddings/"
-save_data_as_pickle((Xf_avg, labelsf_avg), embeddings_path + 'female_avg_embeddings.pickle')
-save_data_as_pickle((Xm_avg, labelsm_avg), embeddings_path + 'male_avg_embeddings.pickle')
+
+Xf_avg, labelsf_avg = load_data_from_pickle(embeddings_path + 'female_avg_embeddings.pickle')
+Xm_avg, labelsm_avg = load_data_from_pickle(embeddings_path + 'male_avg_embeddings.pickle')
 
 X_avg = np.concatenate((Xf_avg, Xm_avg), axis=0)
 labels_avg = np.concatenate((labelsf_avg, labelsm_avg), axis=0)
+
 
 def apply_dimension_reduction(X, method='pca'):
     if method == 'pca':
@@ -123,19 +133,22 @@ X_tsne = apply_dimension_reduction(X_avg, 'tsne')
 X_umap = apply_dimension_reduction(X_avg, 'umap')
 
 # Plot the results
-plot_gender(X_pca, labels_avg, 'Gender PCA Projection', plots_path + "gender_pca.png")
-plot_gender(X_tsne, labels_avg, 'Gender t-SNE Projection', plots_path + "gender_tsne.png")
-plot_gender(X_umap, labels_avg, 'Gender UMAP Projection', plots_path + "gender_umap.png")
+# plot_gender(X_pca, labels_avg, 'Gender PCA Projection', plots_path + "gender_pca.png")
+# plot_gender(X_tsne, labels_avg, 'Gender t-SNE Projection', plots_path + "gender_tsne.png")
+# plot_gender(X_umap, labels_avg, 'Gender UMAP Projection', plots_path + "gender_umap.png")
+
 def plot_nation(X, labels, title, save_path=None):
     nations_list = [lab['nationality'] for lab in labels]
-    nation_counts = Counter(nations_list)
-    top_nations = nation_counts.most_common(6)
-    unique_nationalities = [nation for nation, _ in top_nations]
+    # nation_counts = Counter(nations_list)
+    # top_nations = nation_counts.most_common(6)
+    # unique_nationalities = [nation for nation, _ in top_nations]
+    unique_nationalities = ['USA', 'UK', 'Canada', 'Australia', 'India']
     y = np.array(nations_list)
 
-    hues = np.linspace(0, 1, len(unique_nationalities), endpoint=False)
-    colors = {nation: mcolors.hsv_to_rgb([hue, 1, 1]) for nation, hue in zip(unique_nationalities, hues)}
-    
+    # hues = np.linspace(0, 1, len(unique_nationalities), endpoint=False)
+    # colors = {nation: mcolors.hsv_to_rgb([hue, 1, 1]) for nation, hue in zip(unique_nationalities, hues)}
+    colors = {'USA': 'red', 'UK': 'blue', 'Canada': 'green', 'Australia': 'purple', 'India': 'cyan'}
+
     plt.figure(figsize=(12, 10)) 
     for nationality in unique_nationalities:
         indices = np.where(y == nationality)
